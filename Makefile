@@ -56,30 +56,24 @@ uninstall:
 ## Sync Constellation internal packages
 sync-constellation:
 	@echo "$(CYAN)Syncing Constellation internal packages ($(CONSTELLATION_VERSION))...$(NC)"
-	@if [ ! -d "$(CONSTELLATION_INTERNAL)/.git" ]; then \
-		echo "$(YELLOW)Cloning Constellation repository...$(NC)"; \
-		rm -rf $(CONSTELLATION_INTERNAL); \
-		mkdir -p $(CONSTELLATION_INTERNAL); \
+	@if [ ! -d "$(CONSTELLATION_INTERNAL)" ]; then \
+		echo "$(YELLOW)Cloning Constellation repository to temp directory...$(NC)"; \
+		rm -rf ./tmp/constellation $(CONSTELLATION_INTERNAL); \
+		mkdir -p ./tmp; \
 		git clone --depth 1 --branch $(CONSTELLATION_VERSION) \
-			--filter=blob:none --sparse \
-			$(CONSTELLATION_REPO) $(CONSTELLATION_INTERNAL); \
-		cd $(CONSTELLATION_INTERNAL) && \
-		git sparse-checkout set internal && \
-		git checkout $(CONSTELLATION_VERSION); \
-		echo "$(GREEN)Constellation internal packages synced$(NC)"; \
+			$(CONSTELLATION_REPO) ./tmp/constellation; \
+		echo "$(CYAN)Extracting internal directory...$(NC)"; \
+		mkdir -p $(CONSTELLATION_INTERNAL); \
+		cp -r ./tmp/constellation/internal/* $(CONSTELLATION_INTERNAL)/; \
+		echo "$(CYAN)Cleaning up temp directory...$(NC)"; \
+		rm -rf ./tmp/constellation; \
+		echo "$(GREEN)Constellation internal packages extracted$(NC)"; \
+		echo "$(CYAN)Updating package imports...$(NC)"; \
+		find $(CONSTELLATION_INTERNAL) -type f -name "*.go" ! -name "*.pb.go" -exec sed -i 's|github.com/edgelesssys/constellation/v2/internal|github.com/Hyodar/tdxs/internal/constellation|g' {} +; \
+		echo "$(GREEN)Package imports updated$(NC)"; \
+		go mod tidy; \
 	else \
-		echo "$(YELLOW)Updating Constellation internal packages...$(NC)"; \
-		cd $(CONSTELLATION_INTERNAL) && \
-		git fetch --depth 1 origin $(CONSTELLATION_VERSION) && \
-		git checkout $(CONSTELLATION_VERSION); \
-		echo "$(GREEN)Constellation internal packages updated$(NC)"; \
-	fi
-	@# Move internal directory contents up one level
-	@if [ -d "$(CONSTELLATION_INTERNAL)/internal" ]; then \
-		echo "$(CYAN)Restructuring Constellation internal directory...$(NC)"; \
-		cd $(CONSTELLATION_INTERNAL) && \
-		mv internal/* . 2>/dev/null || true && \
-		rmdir internal 2>/dev/null || true; \
+		echo "$(YELLOW)Constellation internal packages already exist. Skipping...$(NC)"; \
 	fi
 
 ## Clean build artifacts and dependencies
@@ -88,8 +82,14 @@ clean:
 	@rm -rf $(BUILD_DIR)
 	@echo "$(GREEN)Clean complete$(NC)"
 
+## Clean temporary directories
+clean-temp:
+	@echo "$(YELLOW)Cleaning temporary directories...$(NC)"
+	@rm -rf ./tmp
+	@echo "$(GREEN)Temp directories cleaned$(NC)"
+
 ## Deep clean including Constellation packages
-clean-all: clean
+clean-all: clean clean-temp
 	@echo "$(RED)Removing Constellation internal packages...$(NC)"
 	@rm -rf $(CONSTELLATION_INTERNAL)
 	@echo "$(GREEN)Deep clean complete$(NC)"

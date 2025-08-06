@@ -1,0 +1,32 @@
+
+# Transport configuration
+transport:
+  type: socket
+  config:
+    file_path: ./tdxs.sock
+    owner: root
+    group: root
+    perm: 0660
+
+# Issuer configuration
+issuer:
+  type: simulator  # Options: azure, simulator
+  # No config needed for azure or simulator
+
+# Validator configuration  
+validator:
+  type: simulator  # Options: azure, simulator
+  # config:  # Only needed for azure type
+  #   measurements:
+  #     0: "0x1234..."
+  #     1: "0x5678..."
+  #   qeSVN: 1
+  #   pceSVN: 1
+  #   teeTCBSVN: "0x0000000000000000"  # 16 bytes hex
+  #   qeVendorID: "0x0000000000000000"  # 16 bytes hex
+  #   mrSeam: "0x000000..."  # 48 bytes hex (optional)
+  #   xfam: "0x00000000"  # 8 bytes hex
+  #   intelRootKey: |
+  #     -----BEGIN CERTIFICATE-----
+  #     ...
+  #     -----END CERTIFICATE-----
