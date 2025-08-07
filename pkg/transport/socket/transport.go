@@ -7,6 +7,8 @@ import (
 	"io"
 	"net"
 	"os"
+	"os/user"
+	"strconv"
 
 	"github.com/Hyodar/tdxs/pkg/api"
 	"github.com/Hyodar/tdxs/pkg/logger"
@@ -52,6 +54,13 @@ func (t *SocketTransport) Start(ctx context.Context, queues *transport.Transport
 	if err := os.Chmod(t.cfg.FilePath, t.cfg.Perm); err != nil {
 		listener.Close()
 		return fmt.Errorf("failed to set socket permissions: %w", err)
+	}
+
+	if t.cfg.Owner != "" || t.cfg.Group != "" {
+		if err := t.setOwnership(); err != nil {
+			listener.Close()
+			return fmt.Errorf("failed to set socket ownership: %w", err)
+		}
 	}
 
 	go t.acceptConnections(ctx)
@@ -151,4 +160,42 @@ func (t *SocketTransport) handleConnection(ctx context.Context, conn net.Conn) {
 			encoder.Encode(NewIssueResponseFromError(fmt.Errorf("unknown method: %s", req.Method)))
 		}
 	}
+}
+
+func (t *SocketTransport) setOwnership() error {
+	uid := -1
+	gid := -1
+
+	// Resolve user ID
+	if t.cfg.Owner != "" {
+		u, err := user.Lookup(t.cfg.Owner)
+		if err != nil {
+			return fmt.Errorf("failed to lookup user %s: %w", t.cfg.Owner, err)
+		}
+		uid, err = strconv.Atoi(u.Uid)
+		if err != nil {
+			return fmt.Errorf("failed to parse UID: %w", err)
+		}
+	}
+
+	// Resolve group ID
+	if t.cfg.Group != "" {
+		g, err := user.LookupGroup(t.cfg.Group)
+		if err != nil {
+			return fmt.Errorf("failed to lookup group %s: %w", t.cfg.Group, err)
+		}
+		gid, err = strconv.Atoi(g.Gid)
+		if err != nil {
+			return fmt.Errorf("failed to parse GID: %w", err)
+		}
+	}
+
+	// Apply ownership
+	if uid != -1 || gid != -1 {
+		if err := os.Chown(t.cfg.FilePath, uid, gid); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
