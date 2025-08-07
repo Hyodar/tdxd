@@ -106,7 +106,7 @@ type IssuerConfig struct {
 func (i *IssuerConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	type issuerConfigHelper struct {
 		Type   issuer.IssuerType `yaml:"type"`
-		Config *yaml.Node        `yaml:"config"`
+		Config yaml.Node         `yaml:"config"`
 	}
 	var ic issuerConfigHelper
 	if err := unmarshal(&ic); err != nil {
@@ -117,7 +117,7 @@ func (i *IssuerConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
 
 	switch i.Type {
 	case issuer.IssuerTypeAzure, issuer.IssuerTypeSimulator:
-		if ic.Config != nil {
+		if !isNilOrEmptyYAMLNode(ic.Config) {
 			return fmt.Errorf("issuer config is not supported for type: %s", i.Type)
 		}
 	default:
@@ -135,7 +135,7 @@ type ValidatorConfig struct {
 func (v *ValidatorConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	type validatorConfigHelper struct {
 		Type   validator.ValidatorType `yaml:"type"`
-		Config *yaml.Node              `yaml:"config"`
+		Config yaml.Node               `yaml:"config"`
 	}
 	var vc validatorConfigHelper
 	if err := unmarshal(&vc); err != nil {
@@ -152,7 +152,7 @@ func (v *ValidatorConfig) UnmarshalYAML(unmarshal func(interface{}) error) error
 		}
 		v.Config = cfg
 	case validator.ValidatorTypeSimulator:
-		if vc.Config != nil {
+		if !isNilOrEmptyYAMLNode(vc.Config) {
 			return fmt.Errorf("validator config is not supported for type: %s", v.Type)
 		}
 	default:
@@ -160,6 +160,19 @@ func (v *ValidatorConfig) UnmarshalYAML(unmarshal func(interface{}) error) error
 	}
 
 	return nil
+}
+
+func isNilOrEmptyYAMLNode(node yaml.Node) bool {
+	if node.Kind == 0 {
+		return true
+	}
+	if node.Kind == yaml.ScalarNode && node.Tag == "!!null" {
+		return true
+	}
+	if node.Kind == yaml.MappingNode && len(node.Content) == 0 {
+		return true
+	}
+	return false
 }
 
 func createTransport(cfg *TransportConfig, logger logger.Logger) (transport.Transport, error) {
