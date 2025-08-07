@@ -182,7 +182,11 @@ func createTransport(cfg *TransportConfig, logger logger.Logger) (transport.Tran
 		if !ok {
 			return nil, fmt.Errorf("invalid transport config type: %T", cfg.Config)
 		}
-		return sockettransport.NewSocketTransport(&innerCfg, logger), nil
+		transport, err := sockettransport.NewSocketTransport(&innerCfg, logger)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create socket transport: %w", err)
+		}
+		return transport, nil
 	default:
 		return nil, fmt.Errorf("invalid transport type: %s", cfg.Type)
 	}

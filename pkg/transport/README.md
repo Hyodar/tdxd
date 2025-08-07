@@ -10,16 +10,26 @@ This package defines the transport interface and implementations for handling cl
 
 ### Socket Transport
 - **Type**: `socket`
-- **Description**: Unix domain socket implementation for local IPC
-- **Config**:
+- **Description**: Unix domain socket implementation for local IPC with optional systemd socket activation
+- **Config Options**:
+
+  **Option 1: Manual socket creation**
   ```yaml
   config:
-    file_path: "/path/to/socket.sock"
-    owner: "username"     # Optional: socket file owner
-    group: "groupname"    # Optional: socket file group  
-    perm: 0600           # Optional: socket file permissions (octal)
+    file_path: "/path/to/socket.sock"  # Required when systemd is false
+    owner: "username"        # Optional: socket file owner
+    group: "groupname"       # Optional: socket file group  
+    perm: 0600              # Optional: socket file permissions (octal)
   ```
-- **Use Case**: Local inter-process communication, containerized environments
+
+  **Option 2: Systemd socket activation**
+  ```yaml
+  config:
+    systemd: true           # Use systemd socket activation
+    # No other fields allowed when systemd is true
+  ```
+
+- **Use Case**: Local inter-process communication, containerized environments, systemd-managed services
 
 ## API Schema
 
@@ -82,7 +92,9 @@ All requests follow this general structure:
 
 ## Usage Example
 
-### Configuration
+### Configuration Examples
+
+**Manual socket:**
 ```yaml
 # In config.yaml
 transport:
@@ -92,6 +104,31 @@ transport:
     owner: "root"       # Optional
     group: "tdxd"       # Optional
     perm: 0660          # Optional
+```
+
+**Systemd socket activation:**
+```yaml
+# In config.yaml
+transport:
+  type: socket
+  config:
+    systemd: true
+```
+
+For systemd socket activation, create a socket unit file:
+```ini
+# /etc/systemd/system/tdxd.socket
+[Unit]
+Description=TDXD Socket
+
+[Socket]
+ListenStream=/var/run/tdxd.sock
+SocketMode=0660
+SocketUser=root
+SocketGroup=tdxd
+
+[Install]
+WantedBy=sockets.target
 ```
 
 ### Client Example (Shell)

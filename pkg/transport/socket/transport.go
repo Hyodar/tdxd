@@ -13,6 +13,7 @@ import (
 	"github.com/Hyodar/tdxs/pkg/api"
 	"github.com/Hyodar/tdxs/pkg/logger"
 	"github.com/Hyodar/tdxs/pkg/transport"
+	"github.com/coreos/go-systemd/v22/activation"
 )
 
 type SocketTransport struct {
@@ -25,44 +26,82 @@ type SocketTransport struct {
 }
 
 type SocketTransportConfig struct {
+	Systemd  bool        `yaml:"systemd"`
 	FilePath string      `yaml:"file_path"`
 	Owner    string      `yaml:"owner"`
 	Group    string      `yaml:"group"`
 	Perm     os.FileMode `yaml:"perm"`
 }
 
-func NewSocketTransport(cfg *SocketTransportConfig, logger logger.Logger) transport.Transport {
+func (c *SocketTransportConfig) Validate() error {
+	if c.Systemd {
+		if c.FilePath != "" || c.Owner != "" || c.Group != "" || c.Perm != 0 {
+			return fmt.Errorf("when systemd is true, file_path, owner, group, and perm must not be set")
+		}
+	} else {
+		if c.FilePath == "" {
+			return fmt.Errorf("file_path is required when systemd is false")
+		}
+	}
+
+	return nil
+}
+
+func NewSocketTransport(cfg *SocketTransportConfig, logger logger.Logger) (transport.Transport, error) {
+	if err := cfg.Validate(); err != nil {
+		return nil, err
+	}
+
 	return &SocketTransport{
 		cfg:    cfg,
 		logger: logger,
-	}
+	}, nil
 }
 
 func (t *SocketTransport) Start(ctx context.Context, queues *transport.TransportQueues) error {
 	t.queues = queues
 
-	if err := os.RemoveAll(t.cfg.FilePath); err != nil {
-		return fmt.Errorf("failed to remove existing socket: %w", err)
-	}
+	var listener net.Listener
+	var err error
 
-	listener, err := net.Listen("unix", t.cfg.FilePath)
-	if err != nil {
-		return fmt.Errorf("failed to create socket: %w", err)
-	}
-	t.listener = listener
-
-	if err := os.Chmod(t.cfg.FilePath, t.cfg.Perm); err != nil {
-		listener.Close()
-		return fmt.Errorf("failed to set socket permissions: %w", err)
-	}
-
-	if t.cfg.Owner != "" || t.cfg.Group != "" {
-		if err := t.setOwnership(); err != nil {
-			listener.Close()
-			return fmt.Errorf("failed to set socket ownership: %w", err)
+	if t.cfg.Systemd {
+		listeners, err := activation.Listeners()
+		if err != nil {
+			return fmt.Errorf("failed to get systemd listeners: %w", err)
 		}
+		if len(listeners) != 1 {
+			return fmt.Errorf("expected exactly 1 systemd listener, got %d", len(listeners))
+		}
+		listener = listeners[0]
+		t.logger.Info("Using systemd socket activation")
+	} else {
+		if err := os.RemoveAll(t.cfg.FilePath); err != nil {
+			return fmt.Errorf("failed to remove existing socket: %w", err)
+		}
+
+		listener, err = net.Listen("unix", t.cfg.FilePath)
+		if err != nil {
+			return fmt.Errorf("failed to create socket: %w", err)
+		}
+
+		if t.cfg.Perm != 0 {
+			if err := os.Chmod(t.cfg.FilePath, t.cfg.Perm); err != nil {
+				listener.Close()
+				return fmt.Errorf("failed to set socket permissions: %w", err)
+			}
+		}
+
+		if t.cfg.Owner != "" || t.cfg.Group != "" {
+			if err := t.setOwnership(); err != nil {
+				listener.Close()
+				return fmt.Errorf("failed to set socket ownership: %w", err)
+			}
+		}
+
+		t.logger.Info("Socket created", "path", t.cfg.FilePath)
 	}
 
+	t.listener = listener
 	go t.acceptConnections(ctx)
 
 	return nil

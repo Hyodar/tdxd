@@ -163,6 +163,7 @@ require (
 	github.com/containerd/platforms v0.2.1 // indirect
 	github.com/coredns/caddy v1.1.1 // indirect
 	github.com/coredns/corefile-migration v1.0.24 // indirect
+	github.com/coreos/go-systemd/v22 v22.5.0 // indirect
 	github.com/creack/pty v1.1.21 // indirect
 	github.com/cyberphone/json-canonicalization v0.0.0-20220623050100-57a0ce2678a7 // indirect
 	github.com/cyphar/filepath-securejoin v0.4.1 // indirect
