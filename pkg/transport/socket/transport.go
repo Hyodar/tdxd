@@ -14,6 +14,7 @@ import (
 	"github.com/Hyodar/tdxs/pkg/logger"
 	"github.com/Hyodar/tdxs/pkg/transport"
 	"github.com/coreos/go-systemd/v22/activation"
+	"github.com/coreos/go-systemd/v22/daemon"
 )
 
 type SocketTransport struct {
@@ -103,6 +104,15 @@ func (t *SocketTransport) Start(ctx context.Context, queues *transport.Transport
 
 	t.listener = listener
 	go t.acceptConnections(ctx)
+
+	if t.cfg.Systemd {
+		sent, err := daemon.SdNotify(false, daemon.SdNotifyReady)
+		if err != nil {
+			t.logger.Warn("Failed to notify systemd", "error", err)
+		} else if sent {
+			t.logger.Info("Notified systemd that service is ready")
+		}
+	}
 
 	return nil
 }
