@@ -8,6 +8,7 @@ import (
 
 type TransportQueues struct {
 	IssueQueue    chan *api.IssueRequestWrapper
+	MetadataQueue chan *api.MetadataRequestWrapper
 	ValidateQueue chan *api.ValidateRequestWrapper
 }
 

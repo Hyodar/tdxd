@@ -221,6 +221,7 @@ func createValidator(cfg *ValidatorConfig, logger logger.Logger) (validator.Vali
 func (m *Manager) Start(ctx context.Context) error {
 	queues := &transport.TransportQueues{
 		IssueQueue:    make(chan *api.IssueRequestWrapper, 100),
+		MetadataQueue: make(chan *api.MetadataRequestWrapper, 100),
 		ValidateQueue: make(chan *api.ValidateRequestWrapper, 100),
 	}
 

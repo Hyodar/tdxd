@@ -10,3 +10,11 @@ type ValidateResponse struct {
 	Valid    bool
 	Error    error
 }
+
+type MetadataResponse struct {
+	IssuerType string
+	UserData   []byte
+	Nonce      []byte
+	Metadata   any
+	Error      error
+}

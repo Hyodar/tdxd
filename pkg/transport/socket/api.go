@@ -12,6 +12,7 @@ type SocketTransportRequestMethod string
 
 const (
 	SocketTransportRequestMethodIssue    SocketTransportRequestMethod = "issue"
+	SocketTransportRequestMethodMetadata SocketTransportRequestMethod = "metadata"
 	SocketTransportRequestMethodValidate SocketTransportRequestMethod = "validate"
 )
 
@@ -96,6 +97,35 @@ func NewIssueResponseFromAPI(response *api.IssueResponse) *SocketTransportIssueR
 
 	return &SocketTransportIssueResponse{
 		Document: hex.EncodeToString(response.Document),
+	}
+}
+
+type SocketTransportMetadataResponse struct {
+	IssuerType string `json:"issuerType"`
+	UserData   string `json:"userData"`
+	Nonce      string `json:"nonce"`
+	Metadata   any    `json:"metadata"`
+	Error      string `json:"error"`
+}
+
+func NewMetadataResponseFromError(err error) *SocketTransportMetadataResponse {
+	return &SocketTransportMetadataResponse{
+		Error: fmt.Sprintf("transport error: %s", err.Error()),
+	}
+}
+
+func NewMetadataResponseFromAPI(response *api.MetadataResponse) *SocketTransportMetadataResponse {
+	if response.Error != nil {
+		return &SocketTransportMetadataResponse{
+			Error: fmt.Sprintf("validator error: %s", response.Error.Error()),
+		}
+	}
+
+	return &SocketTransportMetadataResponse{
+		IssuerType: response.IssuerType,
+		UserData:   hex.EncodeToString(response.UserData),
+		Nonce:      hex.EncodeToString(response.Nonce),
+		Metadata:   response.Metadata,
 	}
 }
 

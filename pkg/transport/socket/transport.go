@@ -184,6 +184,27 @@ func (t *SocketTransport) handleConnection(ctx context.Context, conn net.Conn) {
 				return
 			}
 
+		case SocketTransportRequestMethodMetadata:
+			metadataReq := apiRequest.(*api.MetadataRequest)
+			wrapper := &api.MetadataRequestWrapper{
+				Request:  metadataReq,
+				Response: make(chan *api.MetadataResponse, 1),
+			}
+
+			select {
+			case t.queues.MetadataQueue <- wrapper:
+				select {
+				case resp := <-wrapper.Response:
+					encoder.Encode(NewMetadataResponseFromAPI(resp))
+				case <-ctx.Done():
+					encoder.Encode(NewMetadataResponseFromError(fmt.Errorf("context cancelled")))
+					return
+				}
+			case <-ctx.Done():
+				encoder.Encode(NewMetadataResponseFromError(fmt.Errorf("context cancelled")))
+				return
+			}
+
 		case SocketTransportRequestMethodValidate:
 			validateReq := apiRequest.(*api.ValidateRequest)
 			wrapper := &api.ValidateRequestWrapper{

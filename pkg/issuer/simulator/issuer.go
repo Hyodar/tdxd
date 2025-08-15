@@ -44,3 +44,17 @@ func (i *SimulatorIssuer) Issue(ctx context.Context, req *api.IssueRequest) *api
 
 	return &api.IssueResponse{Document: jsonDoc}
 }
+
+func (i *SimulatorIssuer) Metadata(ctx context.Context, req *api.MetadataRequest) *api.MetadataResponse {
+	userData := []byte(issuer.MetadataUserData)
+	nonce := []byte(issuer.MetadataNonce)
+
+	return &api.MetadataResponse{
+		IssuerType: string(issuer.IssuerTypeSimulator),
+		UserData:   userData,
+		Nonce:      nonce,
+		Metadata: map[string]string{
+			"simulator": "true",
+		},
+	}
+}
