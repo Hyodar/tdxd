@@ -244,6 +244,8 @@ func (m *Manager) Start(ctx context.Context) error {
 			return err
 		case req := <-queues.IssueQueue:
 			go m.handleIssueRequest(ctx, req)
+		case req := <-queues.MetadataQueue:
+			go m.handleMetadataRequest(ctx, req)
 		case req := <-queues.ValidateQueue:
 			go m.handleValidateRequest(ctx, req)
 		}
@@ -252,6 +254,14 @@ func (m *Manager) Start(ctx context.Context) error {
 
 func (m *Manager) handleIssueRequest(ctx context.Context, wrapper *api.IssueRequestWrapper) {
 	response := m.issuer.Issue(ctx, wrapper.Request)
+	select {
+	case wrapper.Response <- response:
+	case <-ctx.Done():
+	}
+}
+
+func (m *Manager) handleMetadataRequest(ctx context.Context, wrapper *api.MetadataRequestWrapper) {
+	response := m.issuer.Metadata(ctx, wrapper.Request)
 	select {
 	case wrapper.Response <- response:
 	case <-ctx.Done():
