@@ -17,7 +17,7 @@ const (
 )
 
 type SocketTransportRequest struct {
-	Method SocketTransportRequestMethod `json:"type"`
+	Method SocketTransportRequestMethod `json:"method"`
 	Data   json.RawMessage              `json:"data"`
 }
 
@@ -29,6 +29,12 @@ func (r *SocketTransportRequest) UnmarshalData() (any, error) {
 			return nil, fmt.Errorf("failed to unmarshal issue request: %w", err)
 		}
 		return issueRequest.ToAPIRequest()
+	case SocketTransportRequestMethodMetadata:
+		var metadataRequest SocketTransportMetadataRequest
+		if err := json.Unmarshal(r.Data, &metadataRequest); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal metadata request: %w", err)
+		}
+		return metadataRequest.ToAPIRequest()
 	case SocketTransportRequestMethodValidate:
 		var validateRequest SocketTransportValidateRequest
 		if err := json.Unmarshal(r.Data, &validateRequest); err != nil {
@@ -58,6 +64,12 @@ func (r *SocketTransportIssueRequest) ToAPIRequest() (*api.IssueRequest, error) 
 	return &api.IssueRequest{UserData: userData, Nonce: nonce}, nil
 }
 
+type SocketTransportMetadataRequest struct{}
+
+func (r *SocketTransportMetadataRequest) ToAPIRequest() (*api.MetadataRequest, error) {
+	return &api.MetadataRequest{}, nil
+}
+
 type SocketTransportValidateRequest struct {
 	Document string `json:"document"`
 	Nonce    string `json:"nonce"`
@@ -77,79 +89,103 @@ func (r *SocketTransportValidateRequest) ToAPIRequest() (*api.ValidateRequest, e
 	return &api.ValidateRequest{Document: document, Nonce: nonce}, nil
 }
 
-type SocketTransportIssueResponse struct {
+type SocketTransportIssueResponseData struct {
 	Document string `json:"document"`
-	Error    string `json:"error"`
+}
+
+type SocketTransportIssueResponse struct {
+	Data  *SocketTransportIssueResponseData `json:"data"`
+	Error *string                           `json:"error"`
 }
 
 func NewIssueResponseFromError(err error) *SocketTransportIssueResponse {
+	errStr := fmt.Sprintf("transport error: %v", err)
 	return &SocketTransportIssueResponse{
-		Error: fmt.Sprintf("transport error: %s", err.Error()),
+		Error: &errStr,
 	}
 }
 
 func NewIssueResponseFromAPI(response *api.IssueResponse) *SocketTransportIssueResponse {
 	if response.Error != nil {
+		errStr := fmt.Sprintf("validator error: %v", response.Error)
 		return &SocketTransportIssueResponse{
-			Error: fmt.Sprintf("validator error: %s", response.Error.Error()),
+			Error: &errStr,
 		}
 	}
 
 	return &SocketTransportIssueResponse{
-		Document: hex.EncodeToString(response.Document),
+		Data: &SocketTransportIssueResponseData{
+			Document: hex.EncodeToString(response.Document),
+		},
 	}
 }
 
-type SocketTransportMetadataResponse struct {
+type SocketTransportMetadataResponseData struct {
 	IssuerType string `json:"issuerType"`
 	UserData   string `json:"userData"`
 	Nonce      string `json:"nonce"`
 	Metadata   any    `json:"metadata"`
-	Error      string `json:"error"`
+}
+
+type SocketTransportMetadataResponse struct {
+	Data  *SocketTransportMetadataResponseData `json:"data"`
+	Error *string                              `json:"error"`
 }
 
 func NewMetadataResponseFromError(err error) *SocketTransportMetadataResponse {
+	errStr := fmt.Sprintf("transport error: %v", err)
 	return &SocketTransportMetadataResponse{
-		Error: fmt.Sprintf("transport error: %s", err.Error()),
+		Error: &errStr,
 	}
 }
 
 func NewMetadataResponseFromAPI(response *api.MetadataResponse) *SocketTransportMetadataResponse {
 	if response.Error != nil {
+		errStr := fmt.Sprintf("validator error: %v", response.Error)
 		return &SocketTransportMetadataResponse{
-			Error: fmt.Sprintf("validator error: %s", response.Error.Error()),
+			Error: &errStr,
 		}
 	}
 
 	return &SocketTransportMetadataResponse{
-		IssuerType: response.IssuerType,
-		UserData:   hex.EncodeToString(response.UserData),
-		Nonce:      hex.EncodeToString(response.Nonce),
-		Metadata:   response.Metadata,
+		Data: &SocketTransportMetadataResponseData{
+			IssuerType: response.IssuerType,
+			UserData:   hex.EncodeToString(response.UserData),
+			Nonce:      hex.EncodeToString(response.Nonce),
+			Metadata:   response.Metadata,
+		},
 	}
 }
 
-type SocketTransportValidateResponse struct {
+type SocketTransportValidateResponseData struct {
 	UserData string `json:"userData"`
 	Valid    bool   `json:"valid"`
-	Error    string `json:"error"`
+}
+
+type SocketTransportValidateResponse struct {
+	Data  *SocketTransportValidateResponseData `json:"data"`
+	Error *string                              `json:"error"`
 }
 
 func NewValidateResponseFromError(err error) *SocketTransportValidateResponse {
+	errStr := fmt.Sprintf("transport error: %v", err)
 	return &SocketTransportValidateResponse{
-		Error: fmt.Sprintf("transport error: %s", err.Error()),
+		Error: &errStr,
 	}
 }
 
 func NewValidateResponseFromAPI(response *api.ValidateResponse) *SocketTransportValidateResponse {
 	if response.Error != nil {
+		errStr := fmt.Sprintf("validator error: %v", response.Error)
 		return &SocketTransportValidateResponse{
-			Error: fmt.Sprintf("validator error: %s", response.Error.Error()),
+			Error: &errStr,
 		}
 	}
 
 	return &SocketTransportValidateResponse{
-		UserData: hex.EncodeToString(response.UserData),
-		Valid:    response.Valid,
+		Data: &SocketTransportValidateResponseData{
+			UserData: hex.EncodeToString(response.UserData),
+			Valid:    response.Valid,
+		},
 	}
 }
