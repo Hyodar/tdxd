@@ -109,7 +109,15 @@ func (i *AzureIssuer) extractMetadata(doc []byte) (*TDXMetadata, error) {
 		return nil, fmt.Errorf("no SHA256 quote found")
 	}
 
-	quotePb, err := abi.QuoteToProto(sha256Quote.Quote)
+	var instanceInfo struct {
+		AttestationReport []byte
+		RuntimeData       []byte
+	}
+	if err := json.Unmarshal(attDoc.InstanceInfo, &instanceInfo); err != nil {
+		return nil, err
+	}
+
+	quotePb, err := abi.QuoteToProto(instanceInfo.AttestationReport)
 	if err != nil {
 		return nil, fmt.Errorf("parse TDX quote: %w", err)
 	}
@@ -124,28 +132,32 @@ func (i *AzureIssuer) extractMetadata(doc []byte) (*TDXMetadata, error) {
 	}
 
 	if quote.TdQuoteBody != nil {
-		metadata.XFAM = "0x" + hex.EncodeToString(quote.TdQuoteBody.Xfam)
-		metadata.MrTd = "0x" + hex.EncodeToString(quote.TdQuoteBody.MrTd)
-		metadata.MrOwner = "0x" + hex.EncodeToString(quote.TdQuoteBody.MrOwner)
-		metadata.MrSeam = "0x" + hex.EncodeToString(quote.TdQuoteBody.MrSeam)
+		metadata.XFAM = prefixedHexEncode(quote.TdQuoteBody.Xfam)
+		metadata.MrTd = prefixedHexEncode(quote.TdQuoteBody.MrTd)
+		metadata.MrOwner = prefixedHexEncode(quote.TdQuoteBody.MrOwner)
+		metadata.MrSeam = prefixedHexEncode(quote.TdQuoteBody.MrSeam)
 
 		if len(quote.TdQuoteBody.Rtmrs) > 0 {
-			metadata.Rtmr0 = "0x" + hex.EncodeToString(quote.TdQuoteBody.Rtmrs[0])
+			metadata.Rtmr0 = prefixedHexEncode(quote.TdQuoteBody.Rtmrs[0])
 		}
 		if len(quote.TdQuoteBody.Rtmrs) > 1 {
-			metadata.Rtmr1 = "0x" + hex.EncodeToString(quote.TdQuoteBody.Rtmrs[1])
+			metadata.Rtmr1 = prefixedHexEncode(quote.TdQuoteBody.Rtmrs[1])
 		}
 		if len(quote.TdQuoteBody.Rtmrs) > 2 {
-			metadata.Rtmr2 = "0x" + hex.EncodeToString(quote.TdQuoteBody.Rtmrs[2])
+			metadata.Rtmr2 = prefixedHexEncode(quote.TdQuoteBody.Rtmrs[2])
 		}
 		if len(quote.TdQuoteBody.Rtmrs) > 3 {
-			metadata.Rtmr3 = "0x" + hex.EncodeToString(quote.TdQuoteBody.Rtmrs[3])
+			metadata.Rtmr3 = prefixedHexEncode(quote.TdQuoteBody.Rtmrs[3])
 		}
 	}
 
 	for pcrIndex, pcrValue := range sha256Quote.Pcrs.Pcrs {
-		metadata.PCRs[pcrIndex] = "0x" + hex.EncodeToString(pcrValue)
+		metadata.PCRs[pcrIndex] = prefixedHexEncode(pcrValue)
 	}
 
 	return metadata, nil
+}
+
+func prefixedHexEncode(data []byte) string {
+	return "0x" + hex.EncodeToString(data)
 }
